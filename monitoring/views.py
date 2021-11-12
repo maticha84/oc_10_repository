@@ -1,12 +1,3 @@
-from rest_framework.viewsets import ModelViewSet
+from django.shortcuts import render
 
-from .models import Project, Comment, Contributor, Issue
-from .serializers import ProjectSerializer
-from .permissions import IsOwnerProject
-
-class ProjectViewset(ModelViewSet):
-    serializer_class = ProjectSerializer
-    permission_classes = (IsOwnerProject,)
-
-    def get_queryset(self):
-        return Project.objects.all()
+# Create your views here.
