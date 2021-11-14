@@ -6,12 +6,13 @@ from django.urls import path, include
 from rest_framework import routers
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from authentication.views import UserViewset
+from authentication.views import UserViewset, RegistrationViewset
 from monitoring.views import ProjectViewset
 
 
 router = routers.SimpleRouter()
 router.register('users', UserViewset, basename='users')
+router.register('signup', RegistrationViewset, basename='signup')
 router.register('projects', ProjectViewset, basename='projects')
 
 urlpatterns = [
