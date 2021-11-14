@@ -1,4 +1,4 @@
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 
@@ -6,7 +6,7 @@ from .models import User
 from .serializers import UserSerializer, RegistrationSerializer
 
 
-class UserViewset(ModelViewSet):
+class UserViewset(ReadOnlyModelViewSet):
     serializer_class = UserSerializer
 
     def get_queryset(self):

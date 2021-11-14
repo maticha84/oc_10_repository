@@ -15,16 +15,6 @@ class UserSerializer(ModelSerializer):
             }
         }
 
-    def validate_email(self, email):
-        existing = User.objects.filter(email=email)
-        if existing:
-            raise ValidationError("Cet e-mail est déjà enregistré.")
-        return email
-
-    def validate_password(self, password):
-        password_validation.validate_password(password, self.instance)
-        return password
-
 
 class RegistrationSerializer(ModelSerializer):
     confirm_password = CharField(max_length=128, style={'input_type': 'password'}, write_only=True)
