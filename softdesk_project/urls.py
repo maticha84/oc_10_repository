@@ -17,8 +17,8 @@ router.register('projects', ProjectViewset, basename='projects')
 
 urlpatterns = [
     path('objects/', admin.site.urls),
-    path('', include('rest_framework.urls')),
+    path('api/', include('rest_framework.urls')),
     path('', include(router.urls)),
-    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]

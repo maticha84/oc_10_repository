@@ -20,6 +20,9 @@ class Project(models.Model):
     type = models.CharField(max_length=200, verbose_name='Type de projet', choices=TYPE_CHOICES)
     author = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return self.title
+
 
 class Contributor(models.Model):
     AUTHOR = 'AUTHOR'
@@ -29,9 +32,10 @@ class Contributor(models.Model):
         (AUTHOR, 'Auteur'),
         (CONTRIBUTOR, 'Contributeur'),
     ]
-    contributor = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    project = models.ForeignKey(to=Project, on_delete=models.CASCADE)
+    contributor = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_contributor')
+    project = models.ForeignKey(to=Project, on_delete=models.CASCADE, related_name='project_contributor')
     role = models.CharField(max_length=30, choices=CHOICES, verbose_name='role')
+
 
 
 class Issue(models.Model):
@@ -76,6 +80,7 @@ class Issue(models.Model):
                                       related_name='assignee', verbose_name='Assigné à')
 
     created_time = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
+
 
 
 class Comment(models.Model):
