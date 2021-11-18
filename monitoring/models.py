@@ -15,9 +15,9 @@ class Project(models.Model):
         (IOS, 'iOS'),
         (ANDROID, 'Android'),
     ]
-    title = models.CharField(max_length=200, verbose_name='Titre')
+    title = models.CharField(max_length=200, verbose_name='Titre', blank=False)
     description = models.CharField(max_length=5000, verbose_name='Description')
-    type = models.CharField(max_length=200, verbose_name='Type de projet', choices=TYPE_CHOICES)
+    type = models.CharField(max_length=200, verbose_name='Type de projet', choices=TYPE_CHOICES, blank=False)
     author = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def __str__(self):

@@ -1,14 +1,18 @@
 from django.shortcuts import render
 from django.db.models import Value, Q
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, action
 
-from .models import Project, Comment, Contributor, Issue
+from monitoring.models import Project, Comment, Contributor, Issue
+from authentication.models import User
 from .serializers import ProjectSerializer, ContributorSerializer
 from .permissions import IsAuthenticated
 
 
 class ProjectViewset(ModelViewSet):
-    serializer_class = ProjectSerializer #ContributorSerializer
+
+    serializer_class = ProjectSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
@@ -21,3 +25,17 @@ class ProjectViewset(ModelViewSet):
         )
 
         return projects
+
+    def create(self, request):
+        data = request.data
+        serializer = ProjectSerializer(data=data)
+
+        if serializer.is_valid():
+            serializer.save()
+
+        return Response(serializer.data)
+
+
+
+
+
