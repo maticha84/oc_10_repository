@@ -18,7 +18,8 @@ class Project(models.Model):
     title = models.CharField(max_length=200, verbose_name='Titre', blank=False)
     description = models.CharField(max_length=5000, verbose_name='Description')
     type = models.CharField(max_length=200, verbose_name='Type de projet', choices=TYPE_CHOICES, blank=False)
-    author = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    author_user = models.ManyToManyField(to=settings.AUTH_USER_MODEL, through='Contributor',
+                                         related_name='contributions')
 
     def __str__(self):
         return self.title
@@ -32,10 +33,9 @@ class Contributor(models.Model):
         (AUTHOR, 'Auteur'),
         (CONTRIBUTOR, 'Contributeur'),
     ]
-    contributor = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_contributor')
-    project = models.ForeignKey(to=Project, on_delete=models.CASCADE, related_name='project_contributor')
+    contributor = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    project = models.ForeignKey(to=Project, on_delete=models.SET_NULL, null=True, related_name='project_contributor')
     role = models.CharField(max_length=30, choices=CHOICES, verbose_name='role')
-
 
 
 class Issue(models.Model):
@@ -80,7 +80,6 @@ class Issue(models.Model):
                                       related_name='assignee', verbose_name='Assigné à')
 
     created_time = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')
-
 
 
 class Comment(models.Model):

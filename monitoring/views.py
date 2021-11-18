@@ -6,34 +6,27 @@ from rest_framework.decorators import api_view, action
 
 from monitoring.models import Project, Comment, Contributor, Issue
 from authentication.models import User
-from .serializers import ProjectSerializer, ContributorSerializer
+from .serializers import ProjectListSerializer
 from .permissions import IsAuthenticated
 
 
-class ProjectViewset(ModelViewSet):
+class ProjectListViewset(ModelViewSet):
 
-    serializer_class = ProjectSerializer
+    serializer_class = ProjectListSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
         user = self.request.user
         projects = Project.objects.all()
-        contributor = Contributor.objects.filter(project__in=projects, contributor=user)
+
+        """contributor = Contributor.objects.filter(project__in=projects, contributor=user)
         projects = Project.objects.filter(
             Q(project_contributor__in=contributor) |
-            Q(author=user)
-        )
+            Q(author_user=user)
+        )"""
 
         return projects
 
-    def create(self, request):
-        data = request.data
-        serializer = ProjectSerializer(data=data)
-
-        if serializer.is_valid():
-            serializer.save()
-
-        return Response(serializer.data)
 
 
 
