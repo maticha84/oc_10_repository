@@ -18,7 +18,7 @@ class Project(models.Model):
     title = models.CharField(max_length=200, verbose_name='Titre', blank=False)
     description = models.CharField(max_length=5000, verbose_name='Description')
     type = models.CharField(max_length=200, verbose_name='Type de projet', choices=TYPE_CHOICES, blank=False)
-    author_user = models.ManyToManyField(to=settings.AUTH_USER_MODEL, through='Contributor',
+    contributor = models.ManyToManyField(to=settings.AUTH_USER_MODEL, through='Contributor',
                                          related_name='contributions')
 
     def __str__(self):
@@ -33,8 +33,8 @@ class Contributor(models.Model):
         (AUTHOR, 'Auteur'),
         (CONTRIBUTOR, 'Contributeur'),
     ]
-    contributor = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
-    project = models.ForeignKey(to=Project, on_delete=models.SET_NULL, null=True, related_name='project_contributor')
+    user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    project = models.ForeignKey(to=Project, on_delete=models.SET_NULL, null=True, related_name='contributor_project')
     role = models.CharField(max_length=30, choices=CHOICES, verbose_name='role')
 
 
