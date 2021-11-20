@@ -9,19 +9,7 @@ class ContributorSerializer(ModelSerializer):
         fields = ['role', 'project', 'user']
 
 
-class ProjectListSerializer(ModelSerializer):
-    class Meta:
-        model = Project
-        fields = ['title', 'description', 'type']
-
-    def validate_title(self, title):
-        if Project.objects.filter(title=title).exists():
-            raise ValidationError({'title error': 'Ce titre de project existe déjà'})
-        return title
-
-
 class ProjectDetailSerializer(ModelSerializer):
-
     contributor_project = ContributorSerializer(many=True)
 
     class Meta:
@@ -32,4 +20,16 @@ class ProjectDetailSerializer(ModelSerializer):
         if Project.objects.filter(title=value).exists():
             raise ValidationError({'title error': 'Ce titre de project existe déjà'})
         return value
+
+
+class ProjectSerializer(ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['title', 'description', 'type']
+
+    def validate_title(self, value):
+        if Project.objects.filter(title=value).exists():
+            raise ValidationError({'title error': 'Ce titre de project existe déjà'})
+        return value
+
 
