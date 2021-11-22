@@ -10,6 +10,7 @@ class ContributorSerializer(ModelSerializer):
 
 
 class ProjectDetailSerializer(ModelSerializer):
+
     contributor_project = ContributorSerializer(many=True)
 
     class Meta:
@@ -25,7 +26,7 @@ class ProjectDetailSerializer(ModelSerializer):
 class ProjectSerializer(ModelSerializer):
     class Meta:
         model = Project
-        fields = ['title', 'description', 'type']
+        fields = ['title', 'description', 'type', 'contributor']
 
     def validate_title(self, value):
         if Project.objects.filter(title=value).exists():

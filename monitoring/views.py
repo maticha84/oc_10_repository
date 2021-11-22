@@ -4,15 +4,16 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, action
 from rest_framework import status
+from rest_framework.views import APIView
 
 from monitoring.models import Project, Comment, Contributor, Issue
-from authentication.models import User
-from .serializers import ProjectDetailSerializer
+from .serializers import ProjectDetailSerializer, ProjectSerializer, ContributorSerializer
 from .permissions import IsAuthenticated
 
 
 class ProjectViewset(ModelViewSet):
     serializer_class = ProjectDetailSerializer
+    # detail_serializer_class = ProjectDetailSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
@@ -107,3 +108,31 @@ class ProjectViewset(ModelViewSet):
                 {'Suppression': f'Suppression du projet {kwargs["pk"]} effectuée avec succès'},
                 status=status.HTTP_204_NO_CONTENT
             )
+
+
+class ContributorViewset(ModelViewSet):
+    serializer_class = ContributorSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        """
+        Return a list of all users.
+        """
+        user = self.request.user
+        project_id = self.kwargs['project_id']
+
+        projects = Project.objects.filter(id=project_id)
+
+        contributor = Contributor.objects.filter(project__in=projects, user=user)
+
+        if not contributor:
+            data = {
+                'role': "Vous n'êtes pas autorisé à effectuer cette action",
+                    }
+            serializer = ContributorSerializer(data, partial=True)
+
+            return [serializer.data]
+
+        else:
+            contributors = Contributor.objects.filter(project_id=self.kwargs['project_id'])
+            return contributors
