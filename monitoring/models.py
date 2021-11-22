@@ -33,8 +33,8 @@ class Contributor(models.Model):
         (AUTHOR, 'Auteur'),
         (CONTRIBUTOR, 'Contributeur'),
     ]
-    user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
-    project = models.ForeignKey(to=Project, on_delete=models.SET_NULL, null=True, related_name='contributor_project')
+    user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True)
+    project = models.ForeignKey(to=Project, on_delete=models.CASCADE, null=True, related_name='contributor_project')
     role = models.CharField(max_length=30, choices=CHOICES, verbose_name='role')
 
 

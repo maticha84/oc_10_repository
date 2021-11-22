@@ -62,21 +62,48 @@ class ProjectViewset(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
 
-        project_data = request.data
-        serializer = ProjectDetailSerializer(data=project_data, partial=True)
+        user = request.user
+        project = Project.objects.get(pk=kwargs['pk'])
+        contributor = Contributor.objects.filter(project=project, user=user, role='AUTHOR')
 
-        if serializer.is_valid():
-            project = Project.objects.get(pk=kwargs['pk'])
-
-            if 'title' in project_data:
-                project.title = project_data['title']
-            if 'description' in project_data:
-                project.description = project_data['description']
-            if 'type' in project_data:
-                project.type = project_data['type']
-
-            project.save()
-            serializer = ProjectDetailSerializer(project)
-            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        if not contributor:
+            return Response(
+                {'Auteur': "Vous ne pouvez pas actualiser un projet dont vous n'êtes pas l'auteur."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
         else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            project_data = request.data
+            serializer = ProjectDetailSerializer(data=project_data, partial=True)
+
+            if serializer.is_valid():
+                project = Project.objects.get(pk=kwargs['pk'])
+
+                if 'title' in project_data:
+                    project.title = project_data['title']
+                if 'description' in project_data:
+                    project.description = project_data['description']
+                if 'type' in project_data:
+                    project.type = project_data['type']
+
+                project.save()
+                serializer = ProjectDetailSerializer(project)
+                return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        user = request.user
+        project = Project.objects.get(pk=kwargs['pk'])
+        contributor = Contributor.objects.filter(project=project, user=user, role='AUTHOR')
+
+        if not contributor:
+            return Response(
+                {'Auteur': "Vous ne pouvez pas supprimer un projet dont vous n'êtes pas l'auteur."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+        else:
+            project.delete()
+            return Response(
+                {'Suppression': f'Suppression du projet {kwargs["pk"]} effectuée avec succès'},
+                status=status.HTTP_204_NO_CONTENT
+            )
