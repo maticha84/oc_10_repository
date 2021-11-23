@@ -3,6 +3,18 @@ from rest_framework.serializers import ModelSerializer, SerializerMethodField, V
 from .models import Project, Comment, Contributor, Issue
 
 
+class IssueSerializer(ModelSerializer):
+    class Meta:
+        model = Issue
+        fields = ['title', 'desc', 'project', 'tag', 'priority',
+                  'status', 'author_user', 'assignee_user', 'created_time']
+
+    def validate_title(self, title):
+        if Issue.objects.filter(title=title, project=self.kwargs['project_id']).exists():
+            raise ValidationError({'title error': 'Ce titre de problèmes existe déjà'})
+        return title
+
+
 class ContributorSerializer(ModelSerializer):
     class Meta:
         model = Contributor
@@ -10,7 +22,6 @@ class ContributorSerializer(ModelSerializer):
 
 
 class ProjectDetailSerializer(ModelSerializer):
-
     contributor_project = ContributorSerializer(many=True)
 
     class Meta:

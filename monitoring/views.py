@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from monitoring.models import Project, Comment, Contributor, Issue
 from authentication.models import User
-from .serializers import ProjectDetailSerializer, ProjectSerializer, ContributorSerializer
+from .serializers import ProjectDetailSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer
 from .permissions import IsAuthenticated, IsContributor
 
 
@@ -191,3 +191,12 @@ class ContributorViewset(ModelViewSet):
                 },
                 status=status.HTTP_204_NO_CONTENT
             )
+
+
+class IssueViewset(ModelViewSet):
+    serializer_class = IssueSerializer
+    permission_classes = (IsAuthenticated, IsContributor,)
+
+    def get_queryset(self):
+        issues = Issue.objects.filter(project_id=self.kwargs['project_id'])
+        return issues
