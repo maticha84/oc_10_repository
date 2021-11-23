@@ -200,3 +200,45 @@ class IssueViewset(ModelViewSet):
     def get_queryset(self):
         issues = Issue.objects.filter(project_id=self.kwargs['project_id'])
         return issues
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        project_id = kwargs['project_id']
+        author_user = request.user
+
+        issues = Issue.objects.filter(project=project_id, title=data['title'])
+        if issues:
+            return Response(
+                {
+                    "Titre": "Il existe déjà un problème avec un titre identique. Veuillez changer le titre."
+                }
+            )
+
+        try:
+            user = User.objects.get(email=data['assignee_user'])
+            assignee_user = user.id
+
+        except:
+            return Response(
+                {
+                    "Utilisateur assigné": f"L'utilisateur {data['assignee_user']} n'existe pas et ne peut pas "
+                                           f"être assigné à ce problème."
+                }
+            )
+        new_issue_data = {
+            'title': data['title'],
+            'desc': data['desc'],
+            'tag': data['tag'],
+            'priority': data['priority'],
+            'status': data['status'],
+            'author_user': author_user.id,
+            'project': project_id,
+            'assignee_user': assignee_user
+        }
+        serializer = IssueSerializer(data=new_issue_data, partial=True)
+        if serializer.is_valid(project_id):
+            new_issue = serializer.save()
+            serializer = IssueSerializer(new_issue)
+            return Response(serializer.data)
+
+        # return Response(data)

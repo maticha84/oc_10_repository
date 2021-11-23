@@ -9,10 +9,6 @@ class IssueSerializer(ModelSerializer):
         fields = ['title', 'desc', 'project', 'tag', 'priority',
                   'status', 'author_user', 'assignee_user', 'created_time']
 
-    def validate_title(self, title):
-        if Issue.objects.filter(title=title, project=self.kwargs['project_id']).exists():
-            raise ValidationError({'title error': 'Ce titre de problèmes existe déjà'})
-        return title
 
 
 class ContributorSerializer(ModelSerializer):
