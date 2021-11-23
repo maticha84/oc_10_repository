@@ -7,8 +7,9 @@ from rest_framework import status
 from rest_framework.views import APIView
 
 from monitoring.models import Project, Comment, Contributor, Issue
+from authentication.models import User
 from .serializers import ProjectDetailSerializer, ProjectSerializer, ContributorSerializer
-from .permissions import IsAuthenticated
+from .permissions import IsAuthenticated, IsContributor
 
 
 class ProjectViewset(ModelViewSet):
@@ -112,27 +113,55 @@ class ProjectViewset(ModelViewSet):
 
 class ContributorViewset(ModelViewSet):
     serializer_class = ContributorSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsContributor,)
 
     def get_queryset(self):
         """
-        Return a list of all users.
+        Return a list of all contributors in the project.
         """
-        user = self.request.user
-        project_id = self.kwargs['project_id']
 
-        projects = Project.objects.filter(id=project_id)
+        contributors = Contributor.objects.filter(project_id=self.kwargs['project_id'])
+        return contributors
 
-        contributor = Contributor.objects.filter(project__in=projects, user=user)
+    def create(self, request, *args, **kwargs):
 
-        if not contributor:
-            data = {
-                'role': "Vous n'êtes pas autorisé à effectuer cette action",
-                    }
-            serializer = ContributorSerializer(data, partial=True)
+        author = Contributor.objects.filter(project_id=self.kwargs['project_id'], user=request.user.id, role='AUTHOR')
+        if not author:
+            return Response(
+                {"Auteur:": "Vous n'êtes pas auteur du projet, vous ne pouvez pas ajouter de collaborateur."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
 
-            return [serializer.data]
+        data = request.data
+        user_email = data['user']
 
+        user_object = User.objects.filter(email=user_email)
+        for u in user_object:
+            u_id = u.id
+        if not user_object:
+            return Response({'Utilisateur': f"{user_email} n'existe pas."},
+                            status=status.HTTP_400_BAD_REQUEST
+                            )
         else:
-            contributors = Contributor.objects.filter(project_id=self.kwargs['project_id'])
-            return contributors
+            project_id = kwargs['project_id']
+            role = data['role']
+
+            contributor = Contributor.objects.filter(project=project_id, user=u_id)
+            if contributor:
+                return Response({'Contributor:': 'Cet utilisateur est déjà contributeur du projet.'},
+                                status=status.HTTP_400_BAD_REQUEST)
+            else:
+
+                data = {
+                    'project': project_id,
+                    'role': role,
+                    'user': u_id,
+                }
+
+                serializer = ContributorSerializer(data=data)
+
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data)
+                else:
+                    return Response(serializer.errors)

@@ -32,5 +32,3 @@ class ProjectSerializer(ModelSerializer):
         if Project.objects.filter(title=value).exists():
             raise ValidationError({'title error': 'Ce titre de project existe déjà'})
         return value
-
-
