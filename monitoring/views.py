@@ -128,7 +128,7 @@ class ContributorViewset(ModelViewSet):
         author = Contributor.objects.filter(project_id=self.kwargs['project_id'], user=request.user.id, role='AUTHOR')
         if not author:
             return Response(
-                {"Auteur:": "Vous n'êtes pas auteur du projet, vous ne pouvez pas ajouter de collaborateur."},
+                {"Auteur:": "Vous n'êtes pas 'auteur' du projet, vous ne pouvez pas ajouter de collaborateur."},
                 status=status.HTTP_405_METHOD_NOT_ALLOWED
             )
 
@@ -165,3 +165,29 @@ class ContributorViewset(ModelViewSet):
                     return Response(serializer.data)
                 else:
                     return Response(serializer.errors)
+
+    def destroy(self, request, *args, **kwargs):
+
+        author = Contributor.objects.filter(project_id=self.kwargs['project_id'], user=request.user.id, role='AUTHOR')
+        if not author:
+            return Response(
+                {"Auteur:": "Vous n'êtes pas 'auteur' du projet, vous ne pouvez pas supprimer de collaborateur."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+        try:
+            delete_user = Contributor.objects.get(pk=kwargs['pk'])
+            delete_user.delete()
+
+            return Response(
+                {
+                    'Suppression': f'Suppression du collaborateur {kwargs["pk"]} du projet '
+                                   f'{kwargs["project_id"]} effectuée avec succès'
+                },
+                status=status.HTTP_204_NO_CONTENT)
+        except:
+            return Response(
+                {
+                    'Collaborateur': f"L'utilisateur {kwargs['pk']} du projet {kwargs['project_id']} n'existe pas."
+                },
+                status=status.HTTP_204_NO_CONTENT
+            )
