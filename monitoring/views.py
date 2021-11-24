@@ -186,6 +186,7 @@ class ContributorViewset(ModelViewSet):
                 {"Auteur:": "Vous n'êtes pas 'auteur' du projet, vous ne pouvez pas supprimer de collaborateur."},
                 status=status.HTTP_405_METHOD_NOT_ALLOWED
             )
+
         try:
             delete_user = Contributor.objects.get(pk=kwargs['pk'])
             delete_user.delete()
@@ -262,11 +263,11 @@ class IssueViewset(ModelViewSet):
         if not issue:
             return Response(
                 {
-                    'Issue': f"L'issue {kwargs['pk']} n'existe pas. Vous ne pouvez pas la modifier."
+                    'Issue': f"Le problème {kwargs['pk']} n'existe pas. Vous ne pouvez pas le modifier."
                 }, status=status.HTTP_404_NOT_FOUND
             )
 
-        issue.get()
+        issue = issue.get()
         if issue.author_user != user:
             return Response(
                 {'Auteur': "Vous ne pouvez pas actualiser un problème dont vous n'êtes pas l'auteur."},
@@ -315,3 +316,28 @@ class IssueViewset(ModelViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def destroy(self, request, *args, **kwargs):
+        user = request.user
+        issue = Issue.objects.filter(pk=kwargs['pk'])
+        if not issue:
+            return Response(
+                {
+                    'Issue': f"Le problème {kwargs['pk']} n'existe pas. Vous ne pouvez pas le supprimer."
+                }, status=status.HTTP_404_NOT_FOUND
+            )
+
+        issue = issue.get()
+
+        if issue.author_user != user:
+            return Response(
+                {'Auteur': "Vous ne pouvez pas supprimer un problème dont vous n'êtes pas l'auteur."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+
+        issue.delete()
+        return Response(
+            {
+                'Suppression': f'Suppression du problème {kwargs["pk"]} du projet '
+                               f'{kwargs["project_id"]} effectuée avec succès'
+            },
+            status=status.HTTP_204_NO_CONTENT)
