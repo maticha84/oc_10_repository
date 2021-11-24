@@ -388,6 +388,12 @@ class CommentViewset(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         data = request.data
+        if not 'description' in data:
+            return Response(
+                {
+                    'description': "Le couple clef / valeur 'description' doit être renseignée dans la partie 'body'"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         user = request.user
         comment = Comment.objects.filter(pk=kwargs['pk'])
         if not comment:
@@ -410,3 +416,30 @@ class CommentViewset(ModelViewSet):
             serializer = CommentSerializer(comment)
             return Response(serializer.data)
         return Response(serializer.errors)
+
+    def destroy(self, request, *args, **kwargs):
+
+        user = request.user
+
+        comment = Comment.objects.filter(pk=kwargs['pk'])
+        if not comment:
+            return Response(
+                {
+                    'Comment': f"Le commentaire avec l'id {kwargs['pk']} n'existe pas. Vous ne pouvez pas le supprimer"
+                }, status=status.HTTP_404_NOT_FOUND
+            )
+        comment = comment.get()
+
+        if comment.author_user != user:
+            return Response(
+                {'Auteur': "Vous ne pouvez pas supprimer un commentaire dont vous n'êtes pas l'auteur."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+
+        comment.delete()
+        return Response(
+            {
+                'Suppression': f'Suppression du commentaire {kwargs["pk"]} du problème '
+                               f'{kwargs["issue_id"]} effectuée avec succès'
+            },
+            status=status.HTTP_204_NO_CONTENT)
