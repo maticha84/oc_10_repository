@@ -290,7 +290,7 @@ class IssueViewset(ModelViewSet):
                 )
             user = user.get()
             issue.assignee_user = user
-            data['assignee_user']=user.id
+            data['assignee_user'] = user.id
         if 'title' in issue_data:
             issues = Issue.objects.filter(project=project_id, title=issue_data['title'])
             if issues:
@@ -362,7 +362,11 @@ class CommentViewset(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-
+        if not 'description' in data:
+            return Response(
+                {
+                    'description': "Le couple clef / valeur 'description' doit être renseignée dans la partie 'body'"
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = CommentSerializer(data=data, partial=True)
 
@@ -382,3 +386,27 @@ class CommentViewset(ModelViewSet):
 
         return Response(serializer.errors)
 
+    def update(self, request, *args, **kwargs):
+        data = request.data
+        user = request.user
+        comment = Comment.objects.filter(pk=kwargs['pk'])
+        if not comment:
+            return Response(
+                {
+                    'Comment': f"Le commentaire avec l'id {kwargs['pk']} n'existe pas. Vous ne pouvez pas le modifier"
+                }, status=status.HTTP_404_NOT_FOUND
+            )
+        comment = comment.get()
+        if comment.author_user != user:
+            return Response(
+                    {'Auteur': "Vous ne pouvez pas modifier un commentaire dont vous n'êtes pas l'auteur."},
+                    status=status.HTTP_405_METHOD_NOT_ALLOWED
+                )
+
+        serializer = CommentSerializer(data=data, partial=True)
+        if serializer.is_valid():
+            comment.description = data['description']
+            comment.save()
+            serializer = CommentSerializer(comment)
+            return Response(serializer.data)
+        return Response(serializer.errors)
