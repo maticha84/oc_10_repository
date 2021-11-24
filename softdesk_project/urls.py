@@ -17,6 +17,7 @@ router.register('projects', ProjectViewset, basename='projects')
 sub_router1 = routers.SimpleRouter()
 sub_router1.register('contributors', ContributorViewset, basename='contributors')
 sub_router1.register('issues', IssueViewset, basename='issues')
+sub_router2 = routers.SimpleRouter()
 
 
 urlpatterns = [

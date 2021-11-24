@@ -67,8 +67,8 @@ class Issue(models.Model):
         (COMPLETED, "Terminé"),
     ]
 
-    title = models.CharField(max_length=200, verbose_name="Titre", null=False)
-    desc = models.CharField(max_length=5000, verbose_name="Description", null=False)
+    title = models.CharField(max_length=200, verbose_name="Titre")
+    desc = models.CharField(max_length=5000, verbose_name="Description")
     project = models.ForeignKey(to=Project, on_delete=models.CASCADE, verbose_name="Projet")
     tag = models.CharField(max_length=30, verbose_name="Tag", choices=TAG_CHOICES)
     priority = models.CharField(max_length=30, verbose_name="Priorité", choices=PRIORITY_CHOICES)

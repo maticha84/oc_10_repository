@@ -1,15 +1,15 @@
+from typing import Union
+
 from django.shortcuts import render
 from django.db.models import Value, Q
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, action
 from rest_framework import status
-from rest_framework.views import APIView
 
 from monitoring.models import Project, Comment, Contributor, Issue
 from authentication.models import User
 from .serializers import ProjectDetailSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer
-from .permissions import IsAuthenticated, IsContributor
+from .permissions import IsAuthenticated, IsContributor, IsExistingProject
 
 
 class ProjectViewset(ModelViewSet):
@@ -65,7 +65,13 @@ class ProjectViewset(ModelViewSet):
     def update(self, request, *args, **kwargs):
 
         user = request.user
-        project = Project.objects.get(pk=kwargs['pk'])
+        project = Project.objects.filter(pk=kwargs['pk'])
+        if not project:
+            return Response(
+                {'Projet': f"Le projet {kwargs['pk']} n'existe pas. Vous ne pouvez pas le mettre à jour."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        project = project.get()
         contributor = Contributor.objects.filter(project=project, user=user, role='AUTHOR')
 
         if not contributor:
@@ -73,29 +79,35 @@ class ProjectViewset(ModelViewSet):
                 {'Auteur': "Vous ne pouvez pas actualiser un projet dont vous n'êtes pas l'auteur."},
                 status=status.HTTP_405_METHOD_NOT_ALLOWED
             )
+
+        project_data = request.data
+        serializer = ProjectDetailSerializer(data=project_data, partial=True)
+
+        if serializer.is_valid():
+            # project = Project.objects.get(pk=kwargs['pk'])
+
+            if 'title' in project_data:
+                project.title = project_data['title']
+            if 'description' in project_data:
+                project.description = project_data['description']
+            if 'type' in project_data:
+                project.type = project_data['type']
+
+            project.save()
+            serializer = ProjectDetailSerializer(project)
+            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
         else:
-            project_data = request.data
-            serializer = ProjectDetailSerializer(data=project_data, partial=True)
-
-            if serializer.is_valid():
-                project = Project.objects.get(pk=kwargs['pk'])
-
-                if 'title' in project_data:
-                    project.title = project_data['title']
-                if 'description' in project_data:
-                    project.description = project_data['description']
-                if 'type' in project_data:
-                    project.type = project_data['type']
-
-                project.save()
-                serializer = ProjectDetailSerializer(project)
-                return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
         user = request.user
-        project = Project.objects.get(pk=kwargs['pk'])
+        project = Project.objects.filter(pk=kwargs['pk'])
+        if not project:
+            return Response(
+                {'Projet': f"Le projet {kwargs['pk']} n'existe pas. Vous ne pouvez pas le supprimer."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        project = project.get()
         contributor = Contributor.objects.filter(project=project, user=user, role='AUTHOR')
 
         if not contributor:
@@ -113,7 +125,7 @@ class ProjectViewset(ModelViewSet):
 
 class ContributorViewset(ModelViewSet):
     serializer_class = ContributorSerializer
-    permission_classes = (IsAuthenticated, IsContributor,)
+    permission_classes = (IsAuthenticated, IsExistingProject, IsContributor,)
 
     def get_queryset(self):
         """
@@ -195,13 +207,14 @@ class ContributorViewset(ModelViewSet):
 
 class IssueViewset(ModelViewSet):
     serializer_class = IssueSerializer
-    permission_classes = (IsAuthenticated, IsContributor,)
+    permission_classes = (IsAuthenticated, IsExistingProject, IsContributor,)
 
     def get_queryset(self):
         issues = Issue.objects.filter(project_id=self.kwargs['project_id'])
         return issues
 
     def create(self, request, *args, **kwargs):
+
         data = request.data
         project_id = kwargs['project_id']
         author_user = request.user
@@ -242,3 +255,63 @@ class IssueViewset(ModelViewSet):
             return Response(serializer.data)
 
         # return Response(data)
+
+    def update(self, request, *args, **kwargs):
+        user = request.user
+        issue = Issue.objects.filter(pk=kwargs['pk'])
+        if not issue:
+            return Response(
+                {
+                    'Issue': f"L'issue {kwargs['pk']} n'existe pas. Vous ne pouvez pas la modifier."
+                }, status=status.HTTP_404_NOT_FOUND
+            )
+
+        issue.get()
+        if issue.author_user != user:
+            return Response(
+                {'Auteur': "Vous ne pouvez pas actualiser un problème dont vous n'êtes pas l'auteur."},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+
+        issue_data = request.data
+        data = {}
+        if 'assignee_user' in issue_data:
+            user = User.objects.filter(email=issue_data['assignee_user'])
+            if not user:
+                return Response(
+                    {
+                        "Utilisateur assigné": f"L'utilisateur {issue_data['assignee_user']} "
+                                               f"n'existe pas et ne peut pas "
+                                               f"être assigné à ce problème."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user = user.get()
+            issue.assignee_user = user
+            data['assignee_user']=user.id
+        if 'title' in issue_data:
+            issue.title = issue_data['title']
+            data['title'] = issue_data['title']
+        if 'desc' in issue_data:
+            issue.desc = issue_data['desc']
+            data['desc'] = issue_data['desc']
+        if 'tag' in issue_data:
+            issue.tag = issue_data['tag']
+            data['tag'] = issue_data['tag']
+        if 'priority' in issue_data:
+            issue.priority = issue_data['priority']
+            data['priority'] = issue_data['priority']
+        if 'status' in issue_data:
+            issue.status = issue_data['status']
+            data['status'] = issue_data['status']
+
+        serializer = IssueSerializer(data=data, partial=True)
+
+        if serializer.is_valid():
+
+            issue.save()
+            serializer = IssueSerializer(issue)
+            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
