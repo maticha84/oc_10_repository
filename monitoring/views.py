@@ -8,8 +8,8 @@ from rest_framework import status
 
 from monitoring.models import Project, Comment, Contributor, Issue
 from authentication.models import User
-from .serializers import ProjectDetailSerializer, ProjectSerializer, ContributorSerializer, IssueSerializer
-from .permissions import IsAuthenticated, IsContributor, IsExistingProject
+from .serializers import ProjectDetailSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
+from .permissions import IsAuthenticated, IsContributor, IsExistingProject, IsExistingIssue
 
 
 class ProjectViewset(ModelViewSet):
@@ -259,6 +259,7 @@ class IssueViewset(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         user = request.user
+        project_id = kwargs['project_id']
         issue = Issue.objects.filter(pk=kwargs['pk'])
         if not issue:
             return Response(
@@ -291,6 +292,14 @@ class IssueViewset(ModelViewSet):
             issue.assignee_user = user
             data['assignee_user']=user.id
         if 'title' in issue_data:
+            issues = Issue.objects.filter(project=project_id, title=issue_data['title'])
+            if issues:
+                return Response(
+                    {
+                        "Titre": "Il existe déjà un problème avec un titre identique. Veuillez changer le titre."
+                    },
+                    status.HTTP_400_BAD_REQUEST
+                )
             issue.title = issue_data['title']
             data['title'] = issue_data['title']
         if 'desc' in issue_data:
@@ -341,3 +350,35 @@ class IssueViewset(ModelViewSet):
                                f'{kwargs["project_id"]} effectuée avec succès'
             },
             status=status.HTTP_204_NO_CONTENT)
+
+
+class CommentViewset(ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = (IsAuthenticated, IsExistingProject, IsExistingIssue, IsContributor,)
+
+    def get_queryset(self):
+        comments = Comment.objects.filter(issue_id=self.kwargs['issue_id'])
+        return comments
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+
+
+        serializer = CommentSerializer(data=data, partial=True)
+
+        if serializer.is_valid():
+            comment_data = {}
+            author_user = request.user
+            issue = Issue.objects.get(pk=kwargs['issue_id'])
+
+            comment_data['author_user'] = author_user.id
+            comment_data['issue'] = issue.id
+            comment_data['description'] = data['description']
+
+            serializer = CommentSerializer(data=comment_data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+
+        return Response(serializer.errors)
+

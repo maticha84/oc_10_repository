@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
 
-from monitoring.models import Contributor, Project
+from monitoring.models import Contributor, Project, Issue
 
 
 class IsAuthenticated(BasePermission):
@@ -39,5 +39,19 @@ class IsExistingProject(BasePermission):
         project = Project.objects.filter(id=project_id)
 
         if not project:
+            raise ValidationError({"details": self.message})
+        return True
+
+
+class IsExistingIssue(BasePermission):
+    message = "Ce problème n'existe pas. Vous ne pouvez pas y accéder"
+
+    def has_permission(self, request, view):
+
+        issue_id = view.kwargs['issue_id']
+
+        issue = Issue.objects.filter(id=issue_id)
+
+        if not issue:
             raise ValidationError({"details": self.message})
         return True
