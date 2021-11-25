@@ -9,11 +9,16 @@ from monitoring.models import Contributor, Project, Issue
 class IsAuthenticated(BasePermission):
 
     def has_permission(self, request, view):
-        # Ne donnons l’accès qu’aux utilisateurs authentifiés
+        """
+        Acces only for authenticated users
+        """
         return bool(request.user and request.user.is_authenticated)
 
 
 class IsContributor(BasePermission):
+    """
+    Access only for project's contributor
+    """
     message = "Vous n'êtes pas contributeur du projet. Vous n'avez pas l'autorisation d'y accéder."
 
     def has_permission(self, request, view):
@@ -30,6 +35,9 @@ class IsContributor(BasePermission):
 
 
 class IsExistingProject(BasePermission):
+    """
+    Access only for existing projects
+    """
     message = "Ce projet n'existe pas. Vous ne pouvez pas y accéder"
 
     def has_permission(self, request, view):
@@ -44,6 +52,9 @@ class IsExistingProject(BasePermission):
 
 
 class IsExistingIssue(BasePermission):
+    """
+    Access only for existing issues
+    """
     message = "Ce problème n'existe pas. Vous ne pouvez pas y accéder"
 
     def has_permission(self, request, view):

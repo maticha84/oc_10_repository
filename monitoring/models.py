@@ -83,7 +83,7 @@ class Issue(models.Model):
 
 
 class Comment(models.Model):
-    description = models.CharField(max_length=5000, verbose_name="Description")
+    description = models.CharField(max_length=5000, verbose_name="Description", blank=False)
     author_user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.RESTRICT, verbose_name="Auteur")
     issue = models.ForeignKey(to=Issue, on_delete=models.CASCADE)
     created_time = models.DateTimeField(auto_now_add=True, verbose_name='Date de création')

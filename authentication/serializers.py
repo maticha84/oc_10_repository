@@ -4,18 +4,6 @@ from django.contrib.auth import password_validation
 from .models import User
 
 
-class UserSerializer(ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'password', ]
-        extra_kwargs = {
-            'password': {
-                'write_only': True,
-                'style': {'input_type': 'password'}
-            }
-        }
-
-
 class RegistrationSerializer(ModelSerializer):
 
     confirm_password = CharField(max_length=128, style={'input_type': 'password'}, write_only=True)
@@ -35,7 +23,9 @@ class RegistrationSerializer(ModelSerializer):
         return password
 
     def save(self):
-
+        """
+        to save a user registration --> create a new user objects if all data are validated
+        """
         user = User(
             first_name=self.validated_data['first_name'],
             last_name=self.validated_data['last_name'],

@@ -1,4 +1,4 @@
-from rest_framework.serializers import ModelSerializer, SerializerMethodField, ValidationError, CharField
+from rest_framework.serializers import ModelSerializer,  ValidationError
 
 from .models import Project, Comment, Contributor, Issue
 

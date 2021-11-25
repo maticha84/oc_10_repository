@@ -1,7 +1,4 @@
-from typing import Union
-
-from django.shortcuts import render
-from django.db.models import Value, Q
+from django.db.models import Q
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,23 +10,27 @@ from .permissions import IsAuthenticated, IsContributor, IsExistingProject, IsEx
 
 
 class ProjectViewset(ModelViewSet):
+    """
+    class for Project Viewset
+    --> get all projects concerned by the authenticated user
+    --> create a new project
+    --> update a project
+    --> delete (destroy) a project
+    """
     serializer_class = ProjectDetailSerializer
-    # detail_serializer_class = ProjectDetailSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
         """
         GET method
-        return : all projects concerned by the login user (contributor or autor)
+
+        return : all projects concerned by the login user (contributor or author)
         """
         user = self.request.user
         projects = Project.objects.all()
 
         contributor = Contributor.objects.filter(project__in=projects, user=user)
-        projects = Project.objects.filter(
-            Q(contributor_project__in=contributor) |
-            Q(contributor=user)
-        )
+        projects = Project.objects.filter(contributor_project__in=contributor)
 
         return projects
 
@@ -37,6 +38,8 @@ class ProjectViewset(ModelViewSet):
         """
         POST method
         Creation of a project with it first contributor (autor=user)
+
+        fields : title, description, type (author auto create in a contributor object and add to the project)
 
         return:
         - the created project data with code status 201 if OK
@@ -59,11 +62,18 @@ class ProjectViewset(ModelViewSet):
 
             serializer = ProjectDetailSerializer(project)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
+        """
+        PUT method
+        Modification of a project
 
+        fields : title, description, type
+
+        return: the saved project data with code status 202 ACCEPTED if OK,
+        404 NOT FOUND if not found and 405 NOT ALLOWED if user is not author
+        """
         user = request.user
         project = Project.objects.filter(pk=kwargs['pk'])
         if not project:
@@ -84,8 +94,6 @@ class ProjectViewset(ModelViewSet):
         serializer = ProjectDetailSerializer(data=project_data, partial=True)
 
         if serializer.is_valid():
-            # project = Project.objects.get(pk=kwargs['pk'])
-
             if 'title' in project_data:
                 project.title = project_data['title']
             if 'description' in project_data:
@@ -96,10 +104,15 @@ class ProjectViewset(ModelViewSet):
             project.save()
             serializer = ProjectDetailSerializer(project)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
+        """
+        DELETE Method
+        Deletion of a project
+
+        return : 204 NO CONTENT if ok, 404 NOT FOUND if not found and 405 NOT ALLOWED if user is not author
+        """
         user = request.user
         project = Project.objects.filter(pk=kwargs['pk'])
         if not project:
@@ -124,18 +137,38 @@ class ProjectViewset(ModelViewSet):
 
 
 class ContributorViewset(ModelViewSet):
+    """
+        class for contributor Viewset
+        --> get all contributors concerned by the project
+        --> add a new contributor
+        --> delete (destroy) a contributor
+        """
     serializer_class = ContributorSerializer
     permission_classes = (IsAuthenticated, IsExistingProject, IsContributor,)
 
     def get_queryset(self):
         """
-        Return a list of all contributors in the project.
-        """
+        GET Method
 
+        Return: list of all contributors in the project.
+        """
         contributors = Contributor.objects.filter(project_id=self.kwargs['project_id'])
         return contributors
 
     def create(self, request, *args, **kwargs):
+        """
+        POST Method
+        Add a new contributor to a project : may be a CONTRIBUTOR or an AUTHOR. Multi author is allowed.
+
+        fields : user, project, role
+
+        return :
+        if not AUTHOR of the project --> 405 NOT ALLOWED
+        if user doesn't exist in the base --> 404 not found
+        if user is already a contributor of the project --> 400 BAD REQUEST
+        if errors in the data fields --> 400 BAD REQUEST
+        if OK --> 201 CREATED
+        """
 
         author = Contributor.objects.filter(project_id=self.kwargs['project_id'], user=request.user.id, role='AUTHOR')
         if not author:
@@ -152,7 +185,7 @@ class ContributorViewset(ModelViewSet):
             u_id = u.id
         if not user_object:
             return Response({'Utilisateur': f"{user_email} n'existe pas."},
-                            status=status.HTTP_400_BAD_REQUEST
+                            status=status.HTTP_404_NOT_FOUND
                             )
         else:
             project_id = kwargs['project_id']
@@ -174,12 +207,19 @@ class ContributorViewset(ModelViewSet):
 
                 if serializer.is_valid():
                     serializer.save()
-                    return Response(serializer.data)
-                else:
-                    return Response(serializer.errors)
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
+        """
+        DELETE Method
+        delete a contributor to a project
 
+        return :
+        if not AUTHOR of the project --> 405 NOT ALLOWED
+        if user doesn't exist in the base --> 404 not found
+        if OK --> 204 NO CONTENT
+        """
         author = Contributor.objects.filter(project_id=self.kwargs['project_id'], user=request.user.id, role='AUTHOR')
         if not author:
             return Response(
@@ -202,20 +242,43 @@ class ContributorViewset(ModelViewSet):
                 {
                     'Collaborateur': f"L'utilisateur {kwargs['pk']} du projet {kwargs['project_id']} n'existe pas."
                 },
-                status=status.HTTP_204_NO_CONTENT
+                status=status.HTTP_404_NOT_FOUND
             )
 
 
 class IssueViewset(ModelViewSet):
+    """
+    class for Issue Viewset
+    --> get all issue concerned by the project
+    --> create a new issue
+    --> update an issue
+    --> delete (destroy) an issue
+    """
     serializer_class = IssueSerializer
     permission_classes = (IsAuthenticated, IsExistingProject, IsContributor,)
 
     def get_queryset(self):
+        """
+        GET Method
+
+        return : all issues of a project
+        """
         issues = Issue.objects.filter(project_id=self.kwargs['project_id'])
         return issues
 
     def create(self, request, *args, **kwargs):
+        """
+        POST Method
+        Create an issue to a project. User be atomatically the author of this created issue.
 
+        fields : title, desc, tag, priority, status, assignee_user
+
+        return :
+        if OK --> 201 CREATED
+        if title already exists --> 400 BAD REQUEST
+        if assignee_user does not exist --> 404 NOT FOUND
+        if data validation is not OK --> 400 BAD REQUEST
+        """
         data = request.data
         project_id = kwargs['project_id']
         author_user = request.user
@@ -225,7 +288,7 @@ class IssueViewset(ModelViewSet):
             return Response(
                 {
                     "Titre": "Il existe déjà un problème avec un titre identique. Veuillez changer le titre."
-                }
+                }, status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
@@ -237,7 +300,7 @@ class IssueViewset(ModelViewSet):
                 {
                     "Utilisateur assigné": f"L'utilisateur {data['assignee_user']} n'existe pas et ne peut pas "
                                            f"être assigné à ce problème."
-                }
+                }, status=status.HTTP_404_NOT_FOUND
             )
         new_issue_data = {
             'title': data['title'],
@@ -253,11 +316,24 @@ class IssueViewset(ModelViewSet):
         if serializer.is_valid(project_id):
             new_issue = serializer.save()
             serializer = IssueSerializer(new_issue)
-            return Response(serializer.data)
-
-        # return Response(data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status= status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
+        """
+        PUT Method
+        Update an issue to a project.
+
+        fields : title, desc, tag, priority, status, assignee_user
+
+        return :
+        if OK --> 202 accepted
+        if issue doesn't exist --> 404 NOT FOUND
+        if issue's author != user --> 405 NOR ALLOWED
+        if title already exists --> 400 BAD REQUEST
+        if assignee_user does not exist --> 404 NOT FOUND
+        if data validation is not OK --> 400 BAD REQUEST
+        """
         user = request.user
         project_id = kwargs['project_id']
         issue = Issue.objects.filter(pk=kwargs['pk'])
@@ -322,10 +398,19 @@ class IssueViewset(ModelViewSet):
             issue.save()
             serializer = IssueSerializer(issue)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
+        """
+        DELETE Method
+        DELETE an issue to a project.
+
+        return :
+        if OK --> 204 NO CONTENT
+        if issue doesn't exist --> 404 NOT FOUND
+        if issue's author != user --> 405 NOR ALLOWED
+        if data validation is not OK --> 400 BAD REQUEST
+        """
         user = request.user
         issue = Issue.objects.filter(pk=kwargs['pk'])
         if not issue:
@@ -353,15 +438,40 @@ class IssueViewset(ModelViewSet):
 
 
 class CommentViewset(ModelViewSet):
+    """
+    class for Comment Viewset
+    --> get all comment concerned by the issue
+    --> get a comment using his ID
+    --> create a new comment
+    --> update a comment
+    --> delete (destroy) an comment
+    """
     serializer_class = CommentSerializer
     permission_classes = (IsAuthenticated, IsExistingProject, IsExistingIssue, IsContributor,)
 
     def get_queryset(self):
+        """
+        GET Method
+
+        return : all comments to an issue.
+        """
         comments = Comment.objects.filter(issue_id=self.kwargs['issue_id'])
         return comments
 
     def create(self, request, *args, **kwargs):
+        """
+        POST Method
+        create a new comment for an issue. author is automatically the user who create the issue,
+        issue is automatically completed
+
+        fields : description
+
+        returns :
+        if no description (in body or in data) --> 400 BAD REQUEST
+        if OK --> 201 CREATED
+        """
         data = request.data
+
         if not 'description' in data:
             return Response(
                 {
@@ -382,11 +492,24 @@ class CommentViewset(ModelViewSet):
             serializer = CommentSerializer(data=comment_data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        return Response(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
+        """
+        POST Method
+        create a new comment for an issue. author is automatically the user who create the issue,
+        issue is automatically completed
+
+        fields : description
+
+        returns :
+        if no description (in body or in data) --> 400 BAD REQUEST
+        if comment does'nt exist --> 404 NOT FOUND
+        if comment's author != user --> 405 NOT ALLOWED
+        if OK --> 202 ACCEPTED
+        """
         data = request.data
         if not 'description' in data:
             return Response(
@@ -414,11 +537,19 @@ class CommentViewset(ModelViewSet):
             comment.description = data['description']
             comment.save()
             serializer = CommentSerializer(comment)
-            return Response(serializer.data)
-        return Response(serializer.errors)
+            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, *args, **kwargs):
+        """
+        DELETE Method
+        delete a comment
 
+        return :
+        if comment doesn't exist --> 404 NOT FOUND
+        if comment's author != user --> 405 NOT ALLOWED
+        if OK --> 204 NO CONTENT
+        """
         user = request.user
 
         comment = Comment.objects.filter(pk=kwargs['pk'])
