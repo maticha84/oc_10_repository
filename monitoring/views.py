@@ -6,7 +6,14 @@ from rest_framework import status
 from monitoring.models import Project, Comment, Contributor, Issue
 from authentication.models import User
 from .serializers import ProjectDetailSerializer, ContributorSerializer, IssueSerializer, CommentSerializer
-from .permissions import IsAuthenticated, IsContributor, IsExistingProject, IsExistingIssue
+from .permissions import (
+    IsAuthenticated,
+    IsContributor,
+    IsExistingProject,
+    IsExistingIssue,
+    IsAuthorProject,
+    IsAuthorIssue,
+    IsAuthorComment)
 
 
 class ProjectViewset(ModelViewSet):
@@ -18,7 +25,7 @@ class ProjectViewset(ModelViewSet):
     --> delete (destroy) a project
     """
     serializer_class = ProjectDetailSerializer
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, IsAuthorProject)
 
     def get_queryset(self):
         """
@@ -72,9 +79,9 @@ class ProjectViewset(ModelViewSet):
         fields : title, description, type
 
         return: the saved project data with code status 202 ACCEPTED if OK,
-        404 NOT FOUND if not found and 405 NOT ALLOWED if user is not author
+        404 NOT FOUND if not found and 403 FORBIDDEN if user is not author
         """
-        user = request.user
+
         project = Project.objects.filter(pk=kwargs['pk'])
         if not project:
             return Response(
@@ -82,13 +89,6 @@ class ProjectViewset(ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         project = project.get()
-        contributor = Contributor.objects.filter(project=project, user=user, role='AUTHOR')
-
-        if not contributor:
-            return Response(
-                {'Auteur': "Vous ne pouvez pas actualiser un projet dont vous n'êtes pas l'auteur."},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
-            )
 
         project_data = request.data
         serializer = ProjectDetailSerializer(data=project_data, partial=True)
@@ -113,7 +113,6 @@ class ProjectViewset(ModelViewSet):
 
         return : 204 NO CONTENT if ok, 404 NOT FOUND if not found and 405 NOT ALLOWED if user is not author
         """
-        user = request.user
         project = Project.objects.filter(pk=kwargs['pk'])
         if not project:
             return Response(
@@ -121,19 +120,11 @@ class ProjectViewset(ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         project = project.get()
-        contributor = Contributor.objects.filter(project=project, user=user, role='AUTHOR')
-
-        if not contributor:
-            return Response(
-                {'Auteur': "Vous ne pouvez pas supprimer un projet dont vous n'êtes pas l'auteur."},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
-            )
-        else:
-            project.delete()
-            return Response(
-                {'Suppression': f'Suppression du projet {kwargs["pk"]} effectuée avec succès'},
-                status=status.HTTP_204_NO_CONTENT
-            )
+        project.delete()
+        return Response(
+            {'Suppression': f'Suppression du projet {kwargs["pk"]} effectuée avec succès'},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
 class ContributorViewset(ModelViewSet):
@@ -144,7 +135,7 @@ class ContributorViewset(ModelViewSet):
         --> delete (destroy) a contributor
         """
     serializer_class = ContributorSerializer
-    permission_classes = (IsAuthenticated, IsExistingProject, IsContributor,)
+    permission_classes = (IsAuthenticated, IsExistingProject, IsContributor, IsAuthorProject)
 
     def get_queryset(self):
         """
@@ -163,7 +154,7 @@ class ContributorViewset(ModelViewSet):
         fields : user, project, role
 
         return :
-        if not AUTHOR of the project --> 405 NOT ALLOWED
+        if not AUTHOR of the project --> 403 FORBIDDEN
         if user doesn't exist in the base --> 404 not found
         if user is already a contributor of the project --> 400 BAD REQUEST
         if errors in the data fields --> 400 BAD REQUEST
@@ -174,7 +165,7 @@ class ContributorViewset(ModelViewSet):
         if not author:
             return Response(
                 {"Auteur:": "Vous n'êtes pas 'auteur' du projet, vous ne pouvez pas ajouter de collaborateur."},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
+                status=status.HTTP_403_FORBIDDEN
             )
 
         data = request.data
@@ -216,17 +207,10 @@ class ContributorViewset(ModelViewSet):
         delete a contributor to a project
 
         return :
-        if not AUTHOR of the project --> 405 NOT ALLOWED
+        if not AUTHOR of the project --> 403 FORBIDDEN
         if user doesn't exist in the base --> 404 not found
         if OK --> 204 NO CONTENT
         """
-        author = Contributor.objects.filter(project_id=self.kwargs['project_id'], user=request.user.id, role='AUTHOR')
-        if not author:
-            return Response(
-                {"Auteur:": "Vous n'êtes pas 'auteur' du projet, vous ne pouvez pas supprimer de collaborateur."},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
-            )
-
         try:
             delete_user = Contributor.objects.get(pk=kwargs['pk'])
             delete_user.delete()
@@ -255,7 +239,7 @@ class IssueViewset(ModelViewSet):
     --> delete (destroy) an issue
     """
     serializer_class = IssueSerializer
-    permission_classes = (IsAuthenticated, IsExistingProject, IsContributor,)
+    permission_classes = (IsAuthenticated, IsExistingProject, IsContributor,IsAuthorIssue)
 
     def get_queryset(self):
         """
@@ -290,18 +274,20 @@ class IssueViewset(ModelViewSet):
                     "Titre": "Il existe déjà un problème avec un titre identique. Veuillez changer le titre."
                 }, status=status.HTTP_400_BAD_REQUEST
             )
+        if data['assignee_user'] == '':
+            assignee_user = ''
+        else:
+            try:
+                user = User.objects.get(email=data['assignee_user'])
+                assignee_user = user.id
 
-        try:
-            user = User.objects.get(email=data['assignee_user'])
-            assignee_user = user.id
-
-        except:
-            return Response(
-                {
-                    "Utilisateur assigné": f"L'utilisateur {data['assignee_user']} n'existe pas et ne peut pas "
-                                           f"être assigné à ce problème."
-                }, status=status.HTTP_404_NOT_FOUND
-            )
+            except:
+                return Response(
+                    {
+                        "Utilisateur assigné": f"L'utilisateur {data['assignee_user']} n'existe pas et ne peut pas "
+                                               f"être assigné à ce problème."
+                    }, status=status.HTTP_404_NOT_FOUND
+                )
         new_issue_data = {
             'title': data['title'],
             'desc': data['desc'],
@@ -329,12 +315,11 @@ class IssueViewset(ModelViewSet):
         return :
         if OK --> 202 accepted
         if issue doesn't exist --> 404 NOT FOUND
-        if issue's author != user --> 405 NOR ALLOWED
+        if issue's author != user --> 403 FORBIDDEN
         if title already exists --> 400 BAD REQUEST
         if assignee_user does not exist --> 404 NOT FOUND
         if data validation is not OK --> 400 BAD REQUEST
         """
-        user = request.user
         project_id = kwargs['project_id']
         issue = Issue.objects.filter(pk=kwargs['pk'])
         if not issue:
@@ -345,12 +330,6 @@ class IssueViewset(ModelViewSet):
             )
 
         issue = issue.get()
-        if issue.author_user != user:
-            return Response(
-                {'Auteur': "Vous ne pouvez pas actualiser un problème dont vous n'êtes pas l'auteur."},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
-            )
-
         issue_data = request.data
         data = {}
         if 'assignee_user' in issue_data:
@@ -408,7 +387,7 @@ class IssueViewset(ModelViewSet):
         return :
         if OK --> 204 NO CONTENT
         if issue doesn't exist --> 404 NOT FOUND
-        if issue's author != user --> 405 NOR ALLOWED
+        if issue's author != user --> 403 FORBIDDEN
         if data validation is not OK --> 400 BAD REQUEST
         """
         user = request.user
@@ -421,13 +400,6 @@ class IssueViewset(ModelViewSet):
             )
 
         issue = issue.get()
-
-        if issue.author_user != user:
-            return Response(
-                {'Auteur': "Vous ne pouvez pas supprimer un problème dont vous n'êtes pas l'auteur."},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
-            )
-
         issue.delete()
         return Response(
             {
@@ -447,7 +419,7 @@ class CommentViewset(ModelViewSet):
     --> delete (destroy) an comment
     """
     serializer_class = CommentSerializer
-    permission_classes = (IsAuthenticated, IsExistingProject, IsExistingIssue, IsContributor,)
+    permission_classes = (IsAuthenticated, IsExistingProject, IsExistingIssue, IsContributor, IsAuthorComment)
 
     def get_queryset(self):
         """
@@ -507,7 +479,7 @@ class CommentViewset(ModelViewSet):
         returns :
         if no description (in body or in data) --> 400 BAD REQUEST
         if comment does'nt exist --> 404 NOT FOUND
-        if comment's author != user --> 405 NOT ALLOWED
+        if comment's author != user --> 403 FORBIDDEN
         if OK --> 202 ACCEPTED
         """
         data = request.data
@@ -517,7 +489,6 @@ class CommentViewset(ModelViewSet):
                     'description': "Le couple clef / valeur 'description' doit être renseignée dans la partie 'body'"
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-        user = request.user
         comment = Comment.objects.filter(pk=kwargs['pk'])
         if not comment:
             return Response(
@@ -525,13 +496,8 @@ class CommentViewset(ModelViewSet):
                     'Comment': f"Le commentaire avec l'id {kwargs['pk']} n'existe pas. Vous ne pouvez pas le modifier"
                 }, status=status.HTTP_404_NOT_FOUND
             )
-        comment = comment.get()
-        if comment.author_user != user:
-            return Response(
-                    {'Auteur': "Vous ne pouvez pas modifier un commentaire dont vous n'êtes pas l'auteur."},
-                    status=status.HTTP_405_METHOD_NOT_ALLOWED
-                )
 
+        comment = comment.get()
         serializer = CommentSerializer(data=data, partial=True)
         if serializer.is_valid():
             comment.description = data['description']
@@ -547,7 +513,7 @@ class CommentViewset(ModelViewSet):
 
         return :
         if comment doesn't exist --> 404 NOT FOUND
-        if comment's author != user --> 405 NOT ALLOWED
+        if comment's author != user --> 403 FORBIDDEN
         if OK --> 204 NO CONTENT
         """
         user = request.user
@@ -560,13 +526,6 @@ class CommentViewset(ModelViewSet):
                 }, status=status.HTTP_404_NOT_FOUND
             )
         comment = comment.get()
-
-        if comment.author_user != user:
-            return Response(
-                {'Auteur': "Vous ne pouvez pas supprimer un commentaire dont vous n'êtes pas l'auteur."},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
-            )
-
         comment.delete()
         return Response(
             {

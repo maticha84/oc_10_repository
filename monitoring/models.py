@@ -74,7 +74,7 @@ class Issue(models.Model):
     priority = models.CharField(max_length=30, verbose_name="Priorité", choices=PRIORITY_CHOICES)
     status = models.CharField(max_length=30, verbose_name="Statut", choices=STATUS_CHOICES)
 
-    author_user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.RESTRICT, related_name='author',
+    author_user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, related_name='author',
                                     verbose_name='Auteur')
     assignee_user = models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, null=True,
                                       related_name='assignee', verbose_name='Assigné à')
