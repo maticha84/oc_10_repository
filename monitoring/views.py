@@ -130,7 +130,7 @@ class ProjectViewset(ModelViewSet):
         DELETE Method
         Deletion of a project
 
-        return : 204 NO CONTENT if ok, 404 NOT FOUND if not found and 405 NOT ALLOWED if user is not author
+        return : 204 NO CONTENT if ok, 404 NOT FOUND if not found and 403 FORBIDDEN if user is not author
         """
         project = Project.objects.filter(pk=kwargs['pk'])
         if not project:
