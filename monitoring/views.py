@@ -52,6 +52,26 @@ class ProjectViewset(ModelViewSet):
         - the serializer project errors with a status code 400 if not
         """
         project_data = request.data
+
+        if not 'title' in project_data or project_data['title'] == '':
+            return Response(
+                {
+                    "Title": "Le champ titre du projet est obligatoire"
+                }, status=status.HTTP_400_BAD_REQUEST
+            )
+        if not 'description' in project_data or project_data['description'] == '':
+            return Response(
+                {
+                    "Description": "Le champ description du projet est obligatoire"
+                }, status=status.HTTP_400_BAD_REQUEST
+            )
+        if not 'type' in project_data or project_data['description'] == '':
+            return Response(
+                {
+                    "Type": "Le champ type du projet est obligatoire"
+                }, status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = ProjectDetailSerializer(data=project_data, partial=True)
         if serializer.is_valid():
             project = serializer.save()
