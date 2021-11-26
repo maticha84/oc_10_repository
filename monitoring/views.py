@@ -98,7 +98,7 @@ class ProjectViewset(ModelViewSet):
         fields : title, description, type
 
         return: the saved project data with code status 202 ACCEPTED if OK,
-        404 NOT FOUND if not found and 403 FORBIDDEN if user is not author
+        404 NOT FOUND if not found and 403 FORBIDDEN if user is not author, 400 BAD REQUEST
         """
 
         project = Project.objects.filter(pk=kwargs['pk'])
