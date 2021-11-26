@@ -1,4 +1,3 @@
-from django.db.models import Q
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
@@ -164,7 +163,7 @@ class ContributorViewset(ModelViewSet):
         author = Contributor.objects.filter(project_id=self.kwargs['project_id'], user=request.user.id, role='AUTHOR')
         if not author:
             return Response(
-                {"Auteur:": "Vous n'êtes pas 'auteur' du projet, vous ne pouvez pas ajouter de collaborateur."},
+                {"detail:": "Vous n'êtes pas auteur du projet. Vous n'avez pas l'autorisation de modifier/supprimer"},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -275,7 +274,7 @@ class IssueViewset(ModelViewSet):
                 }, status=status.HTTP_400_BAD_REQUEST
             )
         if data['assignee_user'] == '':
-            assignee_user = ''
+            assignee_user = request.user.id
         else:
             try:
                 user = User.objects.get(email=data['assignee_user'])
